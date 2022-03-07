@@ -44,7 +44,26 @@ This will train a K-Means Clustering model using `faiss` and save the centroids 
 ### **Step 4: Find the set of cluster IDs for each image**
 
 ```
-python embed_gallery.py
+python assign_clusterid.py
 ```
 
-This will assign cluster IDs to each image in the gallery.
+This will assign cluster IDs to each descriptor of each image in the gallery.
+
+### **Step 5: Calculate the TF-IDF**
+
+```
+python tfidf.py
+```
+
+This will calculate the TF-IDF of the gallery images and produce 2 files:
+
+- `output/tfidf.npz`: a SciPy sparse matrix to store the TF-IDF vector of the gallery images
+- `output/idf.npy`: the IDF values of each term
+
+### **Step 6: Query**
+
+```
+python query.py <path/to/query/image> <number of results>
+```
+
+This will perform the query and return the most similar images in the gallery.

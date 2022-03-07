@@ -1,41 +1,120 @@
 import csv
+import sys
 
+import scipy.sparse as sp
 import numpy as np
 import cv2 as cv
 import faiss
 
 from utils import extract_descriptors
 
-QUERY_PATH = 'data/oxbuild_images/all_souls_000026.jpg'
+QUERY_PATH = sys.argv[1]
+NUM_RESULT = int(sys.argv[2])
+
 KMEANS_PATH = 'output/kmeans.npy'
-TFIDF_PATH = 'output/tfidf.npy'
+TFIDF_PATH = 'output/tfidf.npz'
 IDF_PATH = 'output/idf.npy'
 METADATA_PATH = 'output/metadata.csv'
 
-img = cv.imread(QUERY_PATH)
-descriptors = extract_descriptors(img)
 
-index = faiss.IndexFlatL2(descriptors.shape[1])
-index.add(np.load(KMEANS_PATH))
-_, I = index.search(descriptors, 1)
-I = I.reshape(-1)
+def assign_clusterid(cluster_index, descriptors):
+    # Search for the nearest centers of each descriptor
+    _, I = cluster_index.search(descriptors, 1)
+    return I.reshape(-1)
 
-idf = np.load(IDF_PATH).astype(np.float32)
-emb = np.zeros(idf.shape, dtype=np.float32)
-terms, cnts = np.unique(I, return_counts=True)
-emb[terms] += cnts
-emb = emb / emb.sum()
-emb = emb * idf
-emb = emb / np.sqrt((emb ** 2).sum())
 
-tfidf = np.load(TFIDF_PATH).astype(np.float32)
-tfidf /= np.sqrt((tfidf ** 2).sum(1, keepdims=True))
+def calculate_single_tf(n_terms, terms):
+    # Create an initial zero vector
+    tf = np.zeros(n_terms, dtype=np.float32)
 
-index2 = faiss.IndexFlatIP(tfidf.shape[1])
-index2.add(tfidf)
+    # Count the frequency of each terms
+    unique_terms, cnts = np.unique(terms, return_counts=True)
+    tf[unique_terms] += cnts
 
-D, I = index2.search(emb[None], 20)
-metadata = list(csv.reader(open(METADATA_PATH)))
-metadata = [x[0] for x in metadata]
-print(np.array(metadata)[I])
-print(D)
+    # Normalize
+    tf = tf / tf.sum()
+
+    return tf
+
+
+def calculate_single_tfidf(tf, idf):
+    # TFIDF[doc, term] = TF[doc, term] * IDF[term]
+    return tf * idf
+
+
+def prepare_cluster_index(kmeans_path):
+    # Load the k-means clusters
+    kmeans_clusters = np.load(kmeans_path)
+
+    # Build FAISS index using L2 distance
+    cluster_index = faiss.IndexFlatL2(kmeans_clusters.shape[1])
+
+    # Add the clusters to the index
+    cluster_index.add(kmeans_clusters)
+
+    return cluster_index
+
+
+def load_idf(idf_path):
+    return np.load(idf_path).astype(np.float32)
+
+
+def load_metadata(metadata_path):
+    return list(csv.reader(open(metadata_path)))
+
+
+def prepare_gallery_index(tfidf_path):
+    # Load the TF-IDF database
+    tfidf = sp.load_npz(tfidf_path)
+    tfidf = tfidf.toarray().astype(np.float32)
+
+    # Normalizing each row
+    tfidf /= np.sqrt((tfidf ** 2).sum(1, keepdims=True))
+
+    # Build FAISS index using cosine distance
+    gallery_index = faiss.IndexFlatIP(tfidf.shape[1])
+
+    # Add the gallery to the index
+    gallery_index.add(tfidf)
+
+    return gallery_index
+
+
+def query(query_path, n_result, cluster_index, idf, gallery_index):
+    # Load the image
+    img = cv.imread(query_path)
+
+    # Extract the descriptors
+    descriptors = extract_descriptors(img)
+
+    # Assign cluster id to the descriptors based on nearest centers
+    terms = assign_clusterid(cluster_index, descriptors)
+
+    # Calculate the query TF
+    tf = calculate_single_tf(idf.shape[0], terms)
+
+    # Calculate the query TF-IDF
+    tfidf = calculate_single_tfidf(tf, idf)
+
+    # Normalize the TF-IDF vector (for cosine)
+    tfidf = tfidf / np.sqrt((tfidf ** 2).sum())
+
+    # Search for the query
+    D, I = gallery_index.search(tfidf[None], n_result)
+
+    return D, I
+
+
+if __name__ == '__main__':
+    # Preparation
+    cluster_index = prepare_cluster_index(KMEANS_PATH)
+    gallery_index = prepare_gallery_index(TFIDF_PATH)
+    idf = load_idf(IDF_PATH)
+    metadata = load_metadata(METADATA_PATH)
+
+    # Query
+    D, I = query(QUERY_PATH, NUM_RESULT, cluster_index, idf, gallery_index)
+
+    # Result
+    print(np.array(metadata)[I])
+    print(D)
