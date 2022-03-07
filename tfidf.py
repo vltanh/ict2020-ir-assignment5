@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import scipy.sparse as sp
 
 CLUSTERID_PATH = 'output/clusterids.json'
 OUTPUT_DIR = 'output'
@@ -10,16 +11,22 @@ unique_terms = set()
 for fn, doc in docs.items():
     unique_terms.update(doc)
 
-count = np.zeros((len(docs), len(unique_terms)))
+count = sp.lil_matrix((len(docs), len(unique_terms)))
 
 for i, (fn, doc) in enumerate(docs.items()):
-    terms, cnts = np.unique(doc, return_counts=True)
-    count[i, terms] += cnts
+    for term in doc:
+        count[i, term] += 1
 
-tf = count / count.sum(1, keepdims=True)
-idf = np.log(len(docs) / (count > 0).sum(0))
+tf = count.tocsr()
+tf.data = tf.data / \
+    np.repeat(
+        np.add.reduceat(tf.data, tf.indptr[:-1]),
+        np.diff(tf.indptr)
+    )
 
-tfidf = tf * idf
+idf = np.log(len(docs) / tf.getnnz(0))
 
-np.save(OUTPUT_DIR + '/tfidf.npy', tfidf)
+tfidf = tf @ sp.diags(idf)
+
+sp.save_npz(OUTPUT_DIR + '/tfidf.npz', tfidf)
 np.save(OUTPUT_DIR + '/idf.npy', idf)
