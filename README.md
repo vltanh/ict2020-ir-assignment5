@@ -67,3 +67,9 @@ python query.py <path/to/query/image> <number of results>
 ```
 
 This will perform the query and return the most similar images in the gallery.
+
+```
+python batch_query.py
+```
+
+This will perform all the queries in `data/query.txt` and store the result in `result`.
