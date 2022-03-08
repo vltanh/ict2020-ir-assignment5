@@ -5,6 +5,7 @@ import scipy.sparse as sp
 import numpy as np
 import cv2 as cv
 import faiss
+import matplotlib.pyplot as plt
 
 from utils import extract_descriptors
 
@@ -101,8 +102,19 @@ def query(query_path, n_result, cluster_index, idf, gallery_index):
 
     # Search for the query
     D, I = gallery_index.search(tfidf[None], n_result)
+    I = I.reshape(-1)
+    D = D.reshape(-1)
 
     return D, I
+
+
+def show_image(ax, path, title=None):
+    img = cv.imread(path)
+    rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+    ax.imshow(rgb)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(title)
 
 
 if __name__ == '__main__':
@@ -115,6 +127,15 @@ if __name__ == '__main__':
     # Query
     D, I = query(QUERY_PATH, NUM_RESULT, cluster_index, idf, gallery_index)
 
-    # Result
-    print(np.array(metadata)[I])
-    print(D)
+    # Plot result
+    fig, axes = plt.subplots(1, NUM_RESULT + 1,
+                             figsize=(5*(NUM_RESULT + 1), 5), dpi=100)
+
+    show_image(axes[0], QUERY_PATH)
+    for t, (i, d) in enumerate(zip(I, D)):
+        result_path = metadata[i][0]
+        show_image(axes[1+t], result_path, f'd = {d:.04f}')
+
+    plt.tight_layout()
+    plt.show()
+    plt.close()
