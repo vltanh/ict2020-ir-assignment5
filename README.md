@@ -1,3 +1,13 @@
+# Bag-of-visual-word Model
+
+## Info
+
+|Name|Student ID|Mail|
+|---|---|---|
+|Vũ Lê Thế Anh|20C13002|anh.vu2020@ict.jvn.edu.vn|
+
+## How to run
+
 ### **Step 1: Prepare the data**
 
 #### **Step 1.1: Download the dataset**
@@ -73,3 +83,30 @@ python batch_query.py
 ```
 
 This will perform all the queries in `data/query.txt` and store the result in `result`.
+
+## **Result**
+
+### **Good**
+
+![](result/all_souls_000026.jpg)
+
+![](result/ashmolean_000305.jpg)
+
+![](result/magdalen_000058.jpg)
+
+![](result/christ_church_000179.jpg)
+
+![](result/hertford_000015.jpg)
+
+### **Bad**
+
+![](result/pitt_rivers_000058.jpg)
+
+![](result/cornmarket_000105.jpg)
+
+![](result/balliol_000051.jpg)
+
+### **Comments**
+
+- Most good results have high similarity with the query image. On the other hand, most bad results have low similarity.
+- A possible reason for bad results is that there are too many noise descriptors (descriptors of surrounding objects different from the object of interest).
