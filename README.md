@@ -6,6 +6,26 @@
 |---|---|---|
 |Vũ Lê Thế Anh|20C13002|anh.vu2020@ict.jvn.edu.vn|
 
+## Requirements
+
+Install `opencv` by
+
+```
+conda install -c menpo opencv
+```
+
+Install `faiss` by
+
+```
+conda install -c pytorch faiss-gpu
+```
+
+Install the other libraries
+
+```
+conda install tqdm matplotlib scipy
+```
+
 ## How to run
 
 ### **Step 1: Prepare the data**
